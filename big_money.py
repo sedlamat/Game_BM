@@ -88,8 +88,9 @@ class BigMoney:
         self.num_money_bags_collected = None
         self.current_money = None
 
-        self.GAME_LENGTH = 300 # play for max 5 minutes
+        self.GAME_LENGTH = 360 # play for max 6 minutes
         self.GAME_SITUATION = 0
+        self.MATCH_THRESH_GAME_OVER = 1000000        
 
         #self.visualize_next_row_cells(cv2.imread(self.path_area),self.colors[7],self.adjusted_next_row_cells_xyxy)
         #self.visualize_grid_cells(cv2.imread(self.path_area),self.colors[7],self.grid_cells_xyxy)
@@ -103,9 +104,9 @@ class BigMoney:
         internally and the playing is faster.
         '''
         t_start = time.time()
-        game_situation_flag = 0
-        while time.time() - t_start < self.GAME_LENGTH: # play for max 5 minutes
-            if game_situation_flag == 0:
+        while time.time() - t_start < self.GAME_LENGTH: # playing for max 6 minutes
+            
+            if  self.GAME_SITUATION == 0:
                 
                 self.money_bags = None
                 self.grid = None
@@ -114,9 +115,7 @@ class BigMoney:
                 self.money_bag_collected = False
                 self.money_bag_dropped = False
                 self.area_img_BGR = None
-                #self.num_money_bags_collected = 0
-                num_clicks = 0
-                
+                                
                 self.area_img_BGR = screen_shot(self.area_xyxy[0],self.area_xyxy[1])
                 self.current_money = self.get_current_money(self.area_img_BGR)
                 self.grid = self.get_grid(self.area_img_BGR)
@@ -124,42 +123,33 @@ class BigMoney:
                 self.last_update_bar_color = self.get_update_bar_color(self.area_img_BGR)
                 if self.last_update_bar_color == 4:
                     self.next_row = self.get_next_row(self.area_img_BGR)
-                # self.visualize_next_row_cells(area_img_BGR,self.colors[7])
-                # self.visualize_grid_cells(area_img_BGR,self.colors[7],self.grid_cells_xyxy)
-                game_situation_flag = 1
                 
-            elif game_situation_flag == 1:
+                self.GAME_SITUATION = 1
                 
-                #print self.grid
-                #time.sleep(5)
-                #t0 = time.time()
+            elif self.GAME_SITUATION == 1:
+                
                 last_click_successful = self.click_and_update_grid()
-                # if not self.test_grid():
-                #     print 'error when updating grid'
-                #t1 = time.time()
-                #print 'click and update', t1-t0
                 if not last_click_successful:
+                    # something is wrong so lets wait and 
                     time.sleep(2)
-                    if get_best_template_match_value(cv2.cvtColor(self.area_img_BGR,cv2.COLOR_BGR2GRAY),
-                                                     self.game_over_img_gray) < 1000000:
+                    self.area_img_BGR = screen_shot(self.area_xyxy[0],self.area_xyxy[1])
+                    # test if its game over
+                    if self.is_game_over(self.area_img_BGR):
                         print 'Game Over'
                         break
                     else:
-                        self.area_img_BGR = screen_shot(self.area_xyxy[0],self.area_xyxy[1])
+                        # test if its a new level   
                         level_absdiff = np.sum(cv2.sumElems(cv2.absdiff(get_region(self.area_img_BGR,self.level_xyxy[0],
                                                                                    self.level_xyxy[1]),
                                                                         self.region_level)))
                         if level_absdiff > 100:
                             print 'Level Up!'
-                            game_situation_flag = 0
+                            self.GAME_SITUATION = 0
                         else:
                             print 'Error - nothing to click.'
-                            game_situation_flag = 0
-                else: # if if it clicked something
-                    num_clicks += 1
-                    #t2 = time.time()
-                    if get_best_template_match_value(cv2.cvtColor(self.area_img_BGR,cv2.COLOR_BGR2GRAY),
-                                                     self.game_over_img_gray) < 1000000:
+                            self.GAME_SITUATION = 0
+                else:
+                    if self.is_game_over(self.area_img_BGR):
                         print 'Game Over'
                         break
                     #t3 = time.time()
@@ -206,16 +196,16 @@ class BigMoney:
                     if level_absdiff > 100:
                         print 'Level Up!'
                         time.sleep(1.5)
-                        game_situation_flag = 0
+                        self.GAME_SITUATION = 0
                     # print
                     # print self.grid - self.get_grid(self.area_img_BGR)
                     # print
                     # time.sleep(1)
                     # if num_clicks % 4 == 0:
-                    #     game_situation_flag = 1
+                    #     self.GAME_SITUATION = 1
                     current_money = self.get_current_money(self.area_img_BGR)
                     if self.current_money > current_money:
-                        game_situation_flag = 0
+                        self.GAME_SITUATION = 0
                         time.sleep(1)
                         print 'new situation'
                     self.current_money = current_money
@@ -224,6 +214,13 @@ class BigMoney:
         for idx,img in enumerate(self.image_buffer):
             cv2.imwrite(self.dir_imgs + 'new_shots/' + str(self.time_buffer[idx]) + '.jpg',img)
 
+    def is_game_over(self, area_img_BGR):
+        area_img_GREY = cv2.cvtColor(area_img_BGR,cv2.COLOR_BGR2GRAY)
+        match_value = get_template_match(area_img_GREY, self.game_over_img_gray)[0]
+        if match_value < self.MATCH_THRESH_GAME_OVER:
+            return True
+        else:
+            return False
 
 
     def get_numbers(self,path_0,path_1,path_2,path_3,path_4,
@@ -548,8 +545,8 @@ class BigMoney:
                 cell_img_BGR = get_region(grid_img_BGR, tuple(self.grid_cells_xyxy[0,jj,0,:]),
                                           tuple(self.grid_cells_xyxy[ii,jj,1,:]))
                 cell_img_gray = cv2.cvtColor(cell_img_BGR, cv2.COLOR_BGR2GRAY)
-                #print get_best_template_match_value(cell_img_gray,self.money_bag_img_gray),
-                if get_best_template_match_value(cell_img_gray,self.money_bag_img_gray) < 500000:
+                
+                if get_template_match(cell_img_gray,self.money_bag_img_gray)[0] < 500000:
                     money_bags.append((ii,jj))
                     #self.money_bag_dropped = True
                     grid_local[ii,jj] = 8
@@ -565,8 +562,8 @@ class BigMoney:
                 cell_img_BGR = get_region(grid_img_BGR, tuple(self.grid_cells_xyxy[ii,jj,0,:]),
                                           tuple(self.grid_cells_xyxy[ii,jj,1,:]))
                 cell_img_gray = cv2.cvtColor(cell_img_BGR, cv2.COLOR_BGR2GRAY)
-                #print get_best_template_match_value(cell_img_gray,self.money_bag_img_gray),
-                if get_best_template_match_value(cell_img_gray,self.money_bag_img_gray) < 500000:
+                
+                if get_template_match(cell_img_gray,self.money_bag_img_gray)[0] < 500000:
                     money_bags.append((ii,jj))
                     #self.money_bag_dropped = True
                     grid[ii,jj] = 8
@@ -615,8 +612,8 @@ class BigMoney:
                 grid_cell_BGR_narrow = get_region(grid_img_BGR,tuple(self.narrowed_grid_cells_xyxy[ii,jj,0,:]),
                                               tuple(self.narrowed_grid_cells_xyxy[ii,jj,1,:]))
                 grid_cell_GRAY_wide = cv2.cvtColor(grid_cell_BGR_wide, cv2.COLOR_BGR2GRAY)
-                #print get_best_template_match_value(grid_cell_GRAY_wide,self.money_bag_img_gray)
-                if get_best_template_match_value(grid_cell_GRAY_wide,self.money_bag_img_gray) < 500000:
+                
+                if get_template_match(grid_cell_GRAY_wide,self.money_bag_img_gray)[0] < 500000:
                     bags.append((ii,jj))
                 grid[ii,jj,:] = np.rint(np.average(grid_cell_BGR_narrow,axis=(0,1))).astype(int)
         grid = 1*(grid[:,:,0]>180)+2*(grid[:,:,1]>180)+4*(grid[:,:,2]>180)
@@ -709,7 +706,7 @@ def get_region(img, left_corner, right_corner):
 def get_region_xyxy_in_area(region_path, path_area):
     area = cv2.imread(path_area, 0)
     region = cv2.imread(region_path, 0)
-    min_loc = get_best_template_match_left_corner(area, region)
+    min_loc = get_template_match(area, region)[1]
     left_corner = min_loc[0], min_loc[1]
     right_corner = min_loc[0] + region.shape[1], min_loc[1] + region.shape[0]
     return left_corner, right_corner
@@ -721,7 +718,7 @@ def get_area_xyxy_on_screen(path_area):
     screen_BGR = screen_shot()
     screen_gray = cv2.cvtColor(screen_BGR, cv2.COLOR_BGR2GRAY )
     area = cv2.imread(path_area, 0 )
-    min_loc = get_best_template_match_left_corner(screen_gray, area)
+    min_loc = get_template_match(screen_gray, area)[1]
     left_corner = min_loc[0], min_loc[1]
     right_corner = min_loc[0] + area.shape[1], min_loc[1] + area.shape[0]
     return left_corner, right_corner
@@ -740,7 +737,13 @@ def get_best_template_match_left_corner(img_gray, template ):
 def get_best_template_match_value(img_gray, template):
     result = cv2.matchTemplate(img_gray, template, cv2.TM_SQDIFF )
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-    return min_val  
+    return min_val
+
+def get_template_match(img_gray, template):
+    result = cv2.matchTemplate(img_gray, template, cv2.TM_SQDIFF )
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+    value, xy = min_val, min_loc
+    return value, xy
 
 def screen_shot(left_corner=None, right_corner=None):
     if (left_corner is not None) and (right_corner is not None):
