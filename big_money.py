@@ -31,8 +31,7 @@ class BigMoney:
         Loads images of the game and computes region coordinates
         of important game attributes.
         '''
-        self.dir_imgs = os.path.expanduser('~') + \
-                        '/Images/Game_Big_Money/'
+        self.dir_imgs = os.path.expanduser('~') + '/Images/Game_Big_Money/'
         self.path_area = self.dir_imgs + 'area_of_interest.bmp'
         self.path_grid = self.dir_imgs + 'grid.bmp'
         self.path_next_row =  self.dir_imgs + 'next_row.bmp'
@@ -55,35 +54,15 @@ class BigMoney:
         # xyxy ... left xy and right xy coords for use with
         # opencv, in form ((x,y),(x,y))
         self.area_xyxy = get_area_xyxy_on_screen(self.path_area)
-        self.grid_xyxy = get_region_xyxy_in_area(self.path_grid,
-                                                 self.path_area)
-        self.next_row_xyxy = get_region_xyxy_in_area(
-            self.path_next_row,
-            self.path_area)
-        self.update_bar_xyxy = get_region_xyxy_in_area(
-            self.path_update_bar,
-            self.path_area)
-        self.level_xyxy = get_region_xyxy_in_area(self.path_level,
-                                                  self.path_area)
-        self.game_over_xyxy = (self.grid_xyxy[0],
-                               (self.grid_xyxy[1][0],
-                                (self.grid_xyxy[1][1] -
-                                 self.grid_xyxy[0][1])/2))
-        self.number_bar_xyxy = get_region_xyxy_in_area(
-            self.path_number_bar,
-            self.path_area)
-
-        self.coin_lenght = (self.grid_xyxy[1][0] -
-                            self.grid_xyxy[0][0])/14.0
-
-        self.grid_xyxy = ((
-            self.grid_xyxy[0][0],
-            int(round(self.grid_xyxy[1][1]-15*self.coin_lenght))),
-                           self.grid_xyxy[1])
-        self.next_row_xyxy = (self.next_row_xyxy[0],
-                                     (self.next_row_xyxy[1][0],
-                                      int(round(self.next_row_xyxy[0][1]+self.coin_lenght))))
-
+        self.grid_xyxy = get_region_xyxy_in_area(self.path_grid, self.path_area)
+        self.next_row_xyxy = get_region_xyxy_in_area(self.path_next_row, self.path_area)
+        self.update_bar_xyxy = get_region_xyxy_in_area(self.path_update_bar, self.path_area)
+        self.level_xyxy = get_region_xyxy_in_area(self.path_level, self.path_area)
+        self.game_over_xyxy = ( self.grid_xyxy[0], ( self.grid_xyxy[1][0], ( self.grid_xyxy[1][1] - self.grid_xyxy[0][1] ) / 2 ) )
+        self.number_bar_xyxy = get_region_xyxy_in_area(self.path_number_bar, self.path_area)
+        self.coin_lenght = ( self.grid_xyxy[1][0] - self.grid_xyxy[0][0] ) / 14.0
+        self.grid_xyxy = ( ( self.grid_xyxy[0][0], int(round(self.grid_xyxy[1][1]-15*self.coin_lenght)) ), self.grid_xyxy[1] )
+        self.next_row_xyxy = ( self.next_row_xyxy[0], ( self.next_row_xyxy[1][0], int(round(self.next_row_xyxy[0][1]+self.coin_lenght))))
         self.grid_cells_xyxy = self.get_grid_cells_xyxy()
         self.narrowed_grid_cells_xyxy = self.get_narrowed_grid_cells_xyxy()
         self.next_row_cells_xyxy = self.get_next_row_cells_xyxy()
@@ -96,27 +75,36 @@ class BigMoney:
         self.game_over_img_gray = cv2.imread(self.path_game_over, 0)
         self.image_buffer = []
         self.time_buffer = []
-        self.numbers = self.get_numbers(self.path_0,self.path_1,self.path_2,self.path_3,self.path_4,
-                                        self.path_5,self.path_6,self.path_7,self.path_8,self.path_9)
+        self.numbers = self.get_numbers(self.path_0, self.path_1, self.path_2, self.path_3, self.path_4,
+                                        self.path_5, self.path_6, self.path_7, self.path_8, self.path_9)
         
         self.money_bags = None
         self.grid = None
         self.next_row = None
         self.last_update_bar_color = None
-        self.money_bag_collected = False
-        self.money_bag_dropped = False
+        self.money_bag_collected = None
+        self.money_bag_dropped = None
         self.area_img_BGR = None
-        self.num_money_bags_collected = 0
+        self.num_money_bags_collected = None
         self.current_money = None
+
+        self.GAME_LENGTH = 300 # play for max 5 minutes
+        self.GAME_SITUATION = 0
 
         #self.visualize_next_row_cells(cv2.imread(self.path_area),self.colors[7],self.adjusted_next_row_cells_xyxy)
         #self.visualize_grid_cells(cv2.imread(self.path_area),self.colors[7],self.grid_cells_xyxy)
                                   
     def play(self):
+        '''Playing the game in a cycle.
+
+        If GAME_SITUATION flag is 0, than all values are loaded anew from
+        the screen, that is usually at the begining or when something wrong
+        happens. If GAME_SITUATION flag is 1 then the game grid is updated
+        internally and the playing is faster.
+        '''
         t_start = time.time()
         game_situation_flag = 0
-        num_clicks = None
-        while time.time() - t_start < 300: # play for 5 minutes
+        while time.time() - t_start < self.GAME_LENGTH: # play for max 5 minutes
             if game_situation_flag == 0:
                 
                 self.money_bags = None
