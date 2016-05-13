@@ -55,19 +55,31 @@ class BigMoney:
         # xyxy ... left xy and right xy coords for use with
         # opencv, in form ((x,y),(x,y))
         self.area_xyxy = get_area_xyxy_on_screen(self.path_area)
-        self.grid_xyxy = get_region_xyxy_in_area(self.path_grid, self.path_area)
-        self.next_row_xyxy = get_region_xyxy_in_area(self.path_next_row, self.path_area)
-        self.update_bar_xyxy = get_region_xyxy_in_area(self.path_update_bar, self.path_area)
-        self.level_xyxy = get_region_xyxy_in_area( self.path_level, self.path_area)
-        self.game_over_xyxy = (self.grid_xyxy[0],(self.grid_xyxy[1][0],
-                                       (self.grid_xyxy[1][1] - self.grid_xyxy[0][1])/2))
-        self.number_bar_xyxy = get_region_xyxy_in_area(self.path_number_bar, self.path_area)
+        self.grid_xyxy = get_region_xyxy_in_area(self.path_grid,
+                                                 self.path_area)
+        self.next_row_xyxy = get_region_xyxy_in_area(
+            self.path_next_row,
+            self.path_area)
+        self.update_bar_xyxy = get_region_xyxy_in_area(
+            self.path_update_bar,
+            self.path_area)
+        self.level_xyxy = get_region_xyxy_in_area(self.path_level,
+                                                  self.path_area)
+        self.game_over_xyxy = (self.grid_xyxy[0],
+                               (self.grid_xyxy[1][0],
+                                (self.grid_xyxy[1][1] -
+                                 self.grid_xyxy[0][1])/2))
+        self.number_bar_xyxy = get_region_xyxy_in_area(
+            self.path_number_bar,
+            self.path_area)
 
-        self.coin_lenght = (self.grid_xyxy[1][0] - self.grid_xyxy[0][0])/14.0
+        self.coin_lenght = (self.grid_xyxy[1][0] -
+                            self.grid_xyxy[0][0])/14.0
 
-        #adjusting regions' shapes
-        self.grid_xyxy = ((self.grid_xyxy[0][0],int(round(self.grid_xyxy[1][1]-15*self.coin_lenght))),
-                                 self.grid_xyxy[1])
+        self.grid_xyxy = ((
+            self.grid_xyxy[0][0],
+            int(round(self.grid_xyxy[1][1]-15*self.coin_lenght))),
+                           self.grid_xyxy[1])
         self.next_row_xyxy = (self.next_row_xyxy[0],
                                      (self.next_row_xyxy[1][0],
                                       int(round(self.next_row_xyxy[0][1]+self.coin_lenght))))
