@@ -73,8 +73,7 @@ class BigMoney:
 
         self.money_bag_img_gray = cv2.imread(self.path_bag, 0)
         self.game_over_img_gray = cv2.imread(self.path_game_over, 0)
-        self.image_buffer = []
-        self.time_buffer = []
+        
         self.numbers = self.get_numbers(self.path_0, self.path_1, self.path_2, self.path_3, self.path_4,
                                         self.path_5, self.path_6, self.path_7, self.path_8, self.path_9)
         
@@ -90,7 +89,8 @@ class BigMoney:
 
         self.GAME_LENGTH = 360 # play for max 6 minutes
         self.GAME_SITUATION = 0
-        self.MATCH_THRESH_GAME_OVER = 1000000        
+        self.THRESH_MATCH_GAME_OVER = 1000000
+        self.THRESH_MATCH_LEVEL = 100
 
         #self.visualize_next_row_cells(cv2.imread(self.path_area),self.colors[7],self.adjusted_next_row_cells_xyxy)
         #self.visualize_grid_cells(cv2.imread(self.path_area),self.colors[7],self.grid_cells_xyxy)
@@ -119,7 +119,7 @@ class BigMoney:
                 self.area_img_BGR = screen_shot(self.area_xyxy[0],self.area_xyxy[1])
                 self.current_money = self.get_current_money(self.area_img_BGR)
                 self.grid = self.get_grid(self.area_img_BGR)
-                self.region_level = get_region(self.area_img_BGR,self.level_xyxy[0],self.level_xyxy[1])
+                self.level_img = get_region(self.area_img_BGR,self.level_xyxy[0],self.level_xyxy[1])
                 self.last_update_bar_color = self.get_update_bar_color(self.area_img_BGR)
                 if self.last_update_bar_color == 4:
                     self.next_row = self.get_next_row(self.area_img_BGR)
@@ -130,94 +130,71 @@ class BigMoney:
                 
                 last_click_successful = self.click_and_update_grid()
                 if not last_click_successful:
-                    # something is wrong so lets wait and 
+                    # something is wrong so lets wait and reload the screen
                     time.sleep(2)
                     self.area_img_BGR = screen_shot(self.area_xyxy[0],self.area_xyxy[1])
                     # test if its game over
+                    display_img(self.area_img_BGR)
                     if self.is_game_over(self.area_img_BGR):
                         print 'Game Over'
                         break
                     else:
-                        # test if its a new level   
-                        level_absdiff = np.sum(cv2.sumElems(cv2.absdiff(get_region(self.area_img_BGR,self.level_xyxy[0],
-                                                                                   self.level_xyxy[1]),
-                                                                        self.region_level)))
-                        if level_absdiff > 100:
+                        if self.is_level_up(self.area_img_BGR):
                             print 'Level Up!'
                             self.GAME_SITUATION = 0
                         else:
-                            print 'Error - nothing to click.'
+                            print 'Error: Nothing to click -> reloading the game attributes.'
                             self.GAME_SITUATION = 0
                 else:
+                    
                     if self.is_game_over(self.area_img_BGR):
                         print 'Game Over'
                         break
-                    #t3 = time.time()
-                    #print 'check for game over', t3-t2
-                    #t4 = time.time()
-                    print self.last_update_bar_color, self.money_bag_collected
-                    print self.next_row
+                    
                     if self.last_update_bar_color == 4 and not self.money_bag_collected:
                         time.sleep(0.1)
                         self.grid = self.add_next_row(self.grid,self.next_row)
-                    # if not self.test_grid():
-                    #     print 'error when adding row'
-                    #t5 = time.time()
-                    #print 'adding next row', t5-t4
-                    #t6 = time.time()
+                    # wait for the game on screen to settle
                     time.sleep(0.1)
-                    #t7 = time.time()
-                    #print 'wating for 0.2s',t7-t6
-                    #t8 = time.time()
+                    
                     self.area_img_BGR = screen_shot(self.area_xyxy[0],self.area_xyxy[1])
-                    #t9 = time.time()
-                    #print 'screen shot of the area', t9-t8
-                    #t10 = time.time()
                     self.last_update_bar_color = self.get_update_bar_color(self.area_img_BGR)
-                    #t11 = time.time()
-                    #print 'getting update bar color', t11-t10
-                    #t12 = time.time()
+
                     if self.last_update_bar_color == 4:
                         self.area_img_BGR = screen_shot(self.area_xyxy[0],self.area_xyxy[1])  
                         self.next_row = self.get_next_row(self.area_img_BGR)
                         if np.count_nonzero(self.next_row) < 14:
-                            print self.next_row
                             time.sleep(0.8)
                             self.area_img_BGR = screen_shot(self.area_xyxy[0],self.area_xyxy[1])
-                    #print 'getting next row',t13-t12
+
                     self.money_bags = self.get_money_bags_on_fly(self.area_img_BGR,self.grid)
-                    #print self.grid
-                    #if self.money_bag_dropped:
-                        #print 'Money bag dropped.'
-                    level_absdiff = np.sum(cv2.sumElems(cv2.absdiff(get_region(self.area_img_BGR,self.level_xyxy[0],
-                                                                               self.level_xyxy[1]),
-                                                                    self.region_level)))
-                    #print 'level absdiff', level_absdiff
-                    if level_absdiff > 100:
+
+                    if self.is_level_up(self.area_img_BGR):
                         print 'Level Up!'
                         time.sleep(1.5)
-                        self.GAME_SITUATION = 0
-                    # print
-                    # print self.grid - self.get_grid(self.area_img_BGR)
-                    # print
-                    # time.sleep(1)
-                    # if num_clicks % 4 == 0:
-                    #     self.GAME_SITUATION = 1
+                        self.GAME_SITUATION = 0                       
+                        
                     current_money = self.get_current_money(self.area_img_BGR)
                     if self.current_money > current_money:
-                        self.GAME_SITUATION = 0
+                        print 'Error: Clicked the wrong -> reloading the game attributes.'
                         time.sleep(1)
-                        print 'new situation'
+                        self.GAME_SITUATION = 0
                     self.current_money = current_money
-            self.image_buffer.append(self.area_img_BGR)
-            self.time_buffer.append(time.time()-t_start)
-        for idx,img in enumerate(self.image_buffer):
-            cv2.imwrite(self.dir_imgs + 'new_shots/' + str(self.time_buffer[idx]) + '.jpg',img)
-
+                    
+    def is_level_up(self, area_img_BGR):
+        '''Checks if it is a new level (level up)
+        '''
+        level_img = get_region(area_img_BGR, self.level_xyxy[0], self.level_xyxy[1])
+        level_absdiff = np.sum(cv2.sumElems(cv2.absdiff(level_img, self.level_img)))
+        if level_absdiff > self.THRESH_MATCH_LEVEL:
+            return True
+        else:
+            return False
+            
     def is_game_over(self, area_img_BGR):
         area_img_GREY = cv2.cvtColor(area_img_BGR,cv2.COLOR_BGR2GRAY)
         match_value = get_template_match(area_img_GREY, self.game_over_img_gray)[0]
-        if match_value < self.MATCH_THRESH_GAME_OVER:
+        if match_value < self.THRESH_MATCH_GAME_OVER:
             return True
         else:
             return False
@@ -716,28 +693,16 @@ def get_area_xyxy_on_screen(path_area):
     
     ''' Returns position of the left_corner and the right_corner of a template in an image/screen. '''
     screen_BGR = screen_shot()
-    screen_gray = cv2.cvtColor(screen_BGR, cv2.COLOR_BGR2GRAY )
-    area = cv2.imread(path_area, 0 )
+    screen_gray = cv2.cvtColor(screen_BGR, cv2.COLOR_BGR2GRAY)
+    area = cv2.imread(path_area, 0)
     min_loc = get_template_match(screen_gray, area)[1]
     left_corner = min_loc[0], min_loc[1]
     right_corner = min_loc[0] + area.shape[1], min_loc[1] + area.shape[0]
     return left_corner, right_corner
 
-
 def mouse_click(position):
     pyautogui.moveTo(position[0],position[1])
     pyautogui.click()
-
-
-def get_best_template_match_left_corner(img_gray, template ):
-    result = cv2.matchTemplate(img_gray, template, cv2.TM_SQDIFF )
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-    return min_loc
-
-def get_best_template_match_value(img_gray, template):
-    result = cv2.matchTemplate(img_gray, template, cv2.TM_SQDIFF )
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-    return min_val
 
 def get_template_match(img_gray, template):
     result = cv2.matchTemplate(img_gray, template, cv2.TM_SQDIFF )
