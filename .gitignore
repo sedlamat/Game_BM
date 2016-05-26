@@ -1,0 +1,5 @@
+# ignore all
+*
+# except game_bm.py and .gitignore
+!game_bm.py
+!.gitignore
