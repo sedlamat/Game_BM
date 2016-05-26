@@ -198,10 +198,14 @@ class BigMoney:
                     t13 = time.time()
                     print 'getting next row', t13-t12
                     self.money_bags = self.get_money_bags_on_fly(self.area_img_BGR,self.grid)
+                    #print self.grid
+                    #if self.money_bag_dropped:
+                        #print 'Money bag dropped.'
                     t14 =  time.time()
                     level_absdiff = np.sum(cv2.sumElems(cv2.absdiff(get_region(self.area_img_BGR,self.level_xyxy[0],
                                                                                self.level_xyxy[1]),
                                                                     self.region_level)))
+                    #print 'level absdiff', level_absdiff
                     if level_absdiff > 100:
                         print 'Level Up!'
                         time.sleep(1.5)
